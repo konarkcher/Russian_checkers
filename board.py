@@ -36,10 +36,9 @@ class Board:
         capture, 1 if your turn, 2 if you win"""
 
         if self.murder == -1:
-            moves, compelled_board = self._move_options(self._enemy, self._bot)
+            moves, compelled_board = self._move_options(-1, bot=False)
         else:
-            moves, compelled_board = self._move_options(
-                self._target_boardlayout(self._enemy, self.murder), self._bot)
+            moves, compelled_board = self._move_options(self.murder, bot=False)
 
         if not ((pos in moves) and (target in moves[pos])):
             return 0 if compelled_board else -1
@@ -48,9 +47,7 @@ class Board:
 
         was_captured = compelled_board
 
-        moves, compelled_board = self._move_options(
-            self._target_boardlayout(self._enemy, target),
-            self._bot)
+        moves, compelled_board = self._move_options(target, bot=False)
 
         if was_captured and compelled_board:
             self.murder = target
@@ -65,7 +62,7 @@ class Board:
         print(*moves_done)
         self._draw()
 
-        moves, compelled_board = self._move_options(self._enemy, self._bot)
+        moves, compelled_board = self._move_options(-1, bot=False)
 
         if compelled_board:
             return 0
@@ -80,7 +77,7 @@ class Board:
                                  {target: target_side.layout[target]})
 
     def _bot_move(self):
-        moves, compelled_board = self._move_options(self._bot, self._enemy)
+        moves, compelled_board = self._move_options(-1, bot=True)
         if len(moves) == 0:
             return []
 
@@ -91,7 +88,7 @@ class Board:
         while first_move or (compelled_board and was_captured):
             first_move = False
 
-            score, best_moves = self._variant_score(depth=3, side=-1,
+            score, best_moves = self._variant_score(depth=3, bot=True,
                                                     murder=-1)
 
             best_moves = self._remove_far(best_moves)
@@ -101,8 +98,7 @@ class Board:
             moves_done.append((pos, target))
 
             was_captured = compelled_board
-            moves, compelled_board = self._move_options(
-                self._target_boardlayout(self._bot, target), self._enemy)
+            moves, compelled_board = self._move_options(target, bot=True)
 
         return moves_done
 
@@ -122,44 +118,43 @@ class Board:
 
         return new_list
 
-    def _get_sides(self, side):
-        me, enemy = self._bot, self._enemy
-        if side == 1:
+    def _get_sides(self, bot):
+        me, enemy = self._enemy, self._bot
+        if bot:
             me, enemy = enemy, me
 
         return me, enemy
 
-    def _variant_score(self, depth, side, murder):  # side = -1 for bot
+    def _variant_score(self, depth, bot, murder):  # side = -1 for bot
         if depth == 0:
-            return copysign(self._score(*self._get_sides(side)), murder), []
+            return copysign(self._score(*self._get_sides(bot)), murder), []
 
         best_score = -1000
         best_moves = []
 
         if murder == -1:
-            moves, compelled_board = self._move_options(*self._get_sides(side))
+            moves, compelled_board = self._move_options(-1, bot=bot)
             if len(moves) == 0:
                 return copysign(-1000, murder), []
         else:
-            me, enemy = self._get_sides(side)
-            moves, compelled_board = self._move_options(
-                self._target_boardlayout(me, murder), enemy)
+            me, enemy = self._get_sides(bot)
+            moves, compelled_board = self._move_options(murder, bot=bot)
 
         for pos, pos_options in moves.items():
             for target in pos_options:
                 move_board = copy.deepcopy(self)
 
-                me, enemy = move_board._get_sides(side)
+                me, enemy = move_board._get_sides(bot)
                 move_board._make_move(pos, target, me, enemy)
 
-                moves, compelled_board = move_board._move_options(
-                    self._target_boardlayout(me, target), enemy)
+                moves, compelled_board = move_board._move_options(target,
+                                                                  bot=bot)
 
                 if compelled_board:
-                    score, b_m = move_board._variant_score(depth - 1, side,
+                    score, b_m = move_board._variant_score(depth - 1, bot,
                                                            target)
                 else:
-                    score, b_m = move_board._variant_score(depth - 1, -side,
+                    score, b_m = move_board._variant_score(depth - 1, not bot,
                                                            -1)
 
                 if score > best_score:
@@ -168,7 +163,7 @@ class Board:
                 elif score == best_score:
                     best_moves.append((pos, target))
 
-        return -best_score, best_moves
+        return copysign(best_score, murder), best_moves
 
     def _side_score(self, me):
         score = 0
@@ -283,11 +278,18 @@ class Board:
 
         return moves, compelled_board
 
-    def _move_options(self, me, enemy):
+    def _move_options(self, target, bot):
         moves = {}
         compelled_board = False
 
-        for pos, is_king in me.layout.items():
+        me, enemy = self._get_sides(bot)
+
+        if target == -1:
+            source = me.layout
+        else:
+            source = {target: me.layout[target]}
+
+        for pos, is_king in source.items():
             if is_king:
                 moves, compelled_board = self._add_options(
                     *self._king_options(pos, me, enemy), moves,
@@ -362,6 +364,7 @@ message = {
 
 print('Would you like to play white? y/n : ', end='')
 test_board = Board(enemy_white=(input() == 'y'))
+
 res = 1
 print(message[res])
 
@@ -377,4 +380,5 @@ while 1:
     print(message[res])
 
     if res in (-2, 2):
+        test_board._draw()
         break
