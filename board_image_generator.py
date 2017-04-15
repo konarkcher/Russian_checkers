@@ -37,4 +37,4 @@ for row in range(8):
             canvas.text(text_place(row, col, text, font), text,
                         font=font, fill='white')
 
-image.save(fp='blank.jpg')
+image.save(fp='blank.png')

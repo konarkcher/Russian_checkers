@@ -334,7 +334,7 @@ class Board:
                 Board._draw_checker(canvas, checker, *palette)
 
     def _draw(self):
-        image = Image.open('blank.jpg')
+        image = Image.open('blank.png')
         canvas = ImageDraw.Draw(image)
 
         enemy_palette = ('black', white_draught_color, edge_color)
