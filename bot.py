@@ -20,14 +20,14 @@ def bot_reply(moves_done):
         return ''
 
     if len(moves_done) == 1:
-        reply = "Bot move:"
+        reply = "Bot move: "
     else:
         reply = "Bot moves: "
 
     for move in moves_done:
-        reply += ' ' + str(move)
+        reply += str(move) + ', '
 
-    return reply + '\n'
+    return reply[:-2] + '\n'
 
 
 def make_markup(game):
@@ -57,7 +57,7 @@ def start_game(message):
     global sessions
     if message.chat.id in sessions:
         bot.send_message(message.chat.id,
-                         "Use '/finish' to finish the game firstly")
+                         "Use /finish to finish the game firstly")
         return
 
     sessions[message.chat.id] = 's'
@@ -87,7 +87,7 @@ def create_game_object(message):
 
     picture = open('tmp.png', 'rb')
     bot.send_photo(message.chat.id, picture,
-                   reply + "Show me what you can!",
+                   reply + "Show me what you can!\nChoose checker:",
                    reply_markup=make_markup(sessions[message.chat.id]))
 
 
@@ -96,7 +96,12 @@ def move_handle(message):
     global sessions
     if message.chat.id not in sessions:
         bot.send_message(message.chat.id,
-                         "Use '/start' to start the game firstly")
+                         "Use /start to start the game firstly")
+        return
+
+    if sessions[message.chat.id] == 's':
+        bot.send_message(message.chat.id,
+                         "Use have to choose the color firstly")
         return
 
     replies = {
@@ -109,8 +114,12 @@ def move_handle(message):
 
     if res in (-3, 3):
         picture = open('tmp.png', 'rb')
+        markup = telebot.types.ReplyKeyboardRemove()
+
         bot.send_photo(message.chat.id, picture,
-                       bot_reply(moves_done) + replies[res])
+                       bot_reply(moves_done) + replies[res] +
+                       "\nUse /start to start a new game", reply_markup=markup)
+        sessions.pop(message.chat.id)
     elif res in (-2, -1):
         bot.send_message(message.chat.id, replies[res])
     elif res in (1, 4):
@@ -130,7 +139,9 @@ def finish_game(message):
     global sessions
     if message.chat.id in sessions:
         sessions.pop(message.chat.id)
-        bot.send_message(message.chat.id, "Finished!")
+        markup = telebot.types.ReplyKeyboardRemove()
+
+        bot.send_message(message.chat.id, "Finished!", reply_markup=markup)
     else:
         bot.send_message(message.chat.id, "You already don't have any games(")
 
@@ -146,7 +157,7 @@ def main():
 
     _thread.start_new_thread(console_talker, ())
 
-    bot.polling()
+    bot.polling(none_stop=True)
 
     #  backup.save(sessions)
 

@@ -378,7 +378,7 @@ class Game:
         if len(moves) > 0:
             return 1, moves_done
         else:
-            return -2, moves_done
+            return -3, moves_done
 
 
 def main():
