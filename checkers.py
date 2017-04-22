@@ -30,7 +30,7 @@ class Board:
             current_pos = current_pos + y * 10 + x
 
         row = target // 10
-        if (row == 8 and me.orient == 1) or (row == 1 and me.orient == -1):
+        if (row, me.orient) in ((8, 1), (1, -1)):
             me.layout[target] = True
             me.layout.pop(pos)
         else:
@@ -85,10 +85,10 @@ class Board:
                 score += 10
             else:
                 score += 5
-                if (pos // 10, me.orient) in [(1, 1), (8, -1)]:
+                if (pos // 10, me.orient) in ((1, 1), (8, -1)):
                     score += 2
 
-            for cell in [pos - 11 * me.orient, pos - 9 * me.orient]:
+            for cell in (pos - 11 * me.orient, pos - 9 * me.orient):
                 if (cell in me.layout) or (not self._is_valid(cell)):
                     score += 1
 
@@ -166,10 +166,10 @@ class Board:
 
 class Painter:
     def __init__(self):
-        self.blank = Image.open('blank.png')
+        self._blank = Image.open('blank.png')
 
     def draw(self, board):
-        image = self.blank.copy()
+        image = self._blank.copy()
         canvas = ImageDraw.Draw(image)
 
         enemy_palette = ('black', white_draught_color, edge_color)
@@ -315,48 +315,67 @@ class Game:
     ai = ArtificialIntelligence()
 
     def __init__(self, enemy_white=True):
-        self.board = Board(enemy_white=enemy_white)
-        if not enemy_white:
-            Game.ai.bot_move(self.board)
-
-        Game.painter.draw(self.board)
+        self._board = Board(enemy_white=enemy_white)
+        Game.painter.draw(self._board)
 
         self.murder = -1
         self.chosen_checker = -1
 
-    def external_session(self, pos, target):  #
-        """Returns -2 if you lose, -1 if wrong move, 0 if you have to
-        capture, 1 if your turn, 2 if you win"""
+    def black_first_move(self):
+        moves_done = Game.ai.bot_move(self._board)
+
+        Game.painter.draw(self._board)
+        return moves_done
+
+    def button_variants(self):
+        moves, c_b = self._board.move_options(-1, bot=False)
+        if self.chosen_checker == -1:
+            res = moves.keys()
+        else:
+            res = moves[self.chosen_checker]
+
+        return [str(elem) for elem in list(res)]
+
+    def external_session(self, number):
+        if number not in self.button_variants():
+            return (-1 if self.chosen_checker == -1 else -2), []
+
+        if self.chosen_checker == -1:
+            self.chosen_checker = int(number)
+            return 2, []
+        else:
+            return self.move_session(self.chosen_checker, int(number))
+
+    def move_session(self, pos, target):  #
+        """Returns -3 if you lose, 1 if choose checker, 2 if choose cell, 
+        3 if you win"""
 
         if self.murder == -1:
-            moves, compelled_board = self.board.move_options(-1, bot=False)
+            moves, compelled_board = self._board.move_options(-1, bot=False)
         else:
-            moves, compelled_board = self.board.move_options(self.murder,
-                                                             bot=False)
+            moves, compelled_board = self._board.move_options(self.murder,
+                                                              bot=False)
 
-        if not ((pos in moves) and (target in moves[pos])):
-            return (0, []) if compelled_board else (-1, [])
+        self._board.make_move(pos, target, *self._board.get_sides(bot=False))
 
-        self.board.make_move(pos, target, *self.board.get_sides(bot=False))
-
-        if compelled_board and self.board.move_options(target, bot=False)[1]:
+        if compelled_board and self._board.move_options(target, bot=False)[1]:
             self.murder = target
-            Game.painter.draw(self.board)
-            return 0, []
+            self.chosen_checker = target
+            Game.painter.draw(self._board)
+            return 4, []
         else:
             self.murder = -1
+            self.chosen_checker = -1
 
-        moves_done = Game.ai.bot_move(self.board)
-        Game.painter.draw(self.board)
+        moves_done = Game.ai.bot_move(self._board)
+        Game.painter.draw(self._board)
 
         if len(moves_done) == 0:
-            return 2, moves_done
+            return 3, moves_done
 
-        moves, compelled_board = self.board.move_options(-1, bot=False)
+        moves, compelled_board = self._board.move_options(-1, bot=False)
 
-        if compelled_board:
-            return 0, moves_done
-        elif len(moves) > 0:
+        if len(moves) > 0:
             return 1, moves_done
         else:
             return -2, moves_done
@@ -385,7 +404,7 @@ def main():
             print(message[res])
             continue
 
-        res, moves_done = test_board.external_session(inp_pos, inp_target)
+        res, moves_done = test_board.move_session(inp_pos, inp_target)
 
         image = Image.open('tmp.png')
         image.show()
