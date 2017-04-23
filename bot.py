@@ -1,5 +1,6 @@
 import telebot
 import _thread
+import pickle
 from bot_config import TOKEN
 from checkers import Game
 
@@ -9,10 +10,16 @@ sessions = {}
 
 def console_talker():
     while True:
-        print("Input 'stop' to stop server")
-        if input() == 'stop':
+        print(
+            "Input 'stop' to stop server, 'info' for players online\n>>> ",
+            end='')
+
+        command = input()
+        if command == 'stop':
             bot.stop_polling()
             break
+        elif command == 'info':
+            print(len(sessions))
 
 
 def bot_reply(moves_done):
@@ -50,6 +57,10 @@ def make_markup(game):
         markup.row(*key_list)
 
     return markup
+
+
+def my_true(message):
+    return True
 
 
 @bot.message_handler(commands=['start'])
@@ -147,19 +158,27 @@ def finish_game(message):
 
 
 @bot.message_handler(content_types=['text'])
-def reply_all(message):
+def reply_all_text(message):
     bot.send_message(message.chat.id, "Wrong command!")
+
+
+@bot.message_handler(func=lambda message: True)
+def reply_all(message):
+    print('lol')
+    bot.send_message(message.chat.id, "You can send only text!")
 
 
 def main():
     global sessions
-    #  sessions = backup.get()
+    with open('dump.pickle', 'rb') as f:
+        sessions = pickle.load(f)
 
     _thread.start_new_thread(console_talker, ())
 
     bot.polling(none_stop=True)
 
-    #  backup.save(sessions)
+    with open('dump.pickle', 'wb') as f:
+        pickle.dump(sessions, f)
 
     print('Finished!')
 

@@ -5,16 +5,16 @@ from PIL import Image, ImageDraw, ImageFont
 from draw_config import margin, sf_font, red_color, edge_color, \
     white_draught_color, black_draught_color
 
+BoardLayout = namedtuple('BoardLayout', ['orient', 'layout'])
+
 
 class Board:
-    BoardLayout = namedtuple('BoardLayout', ['orient', 'layout'])
-
     def __init__(self, enemy_white):
         self.enemy_white = enemy_white
 
-        self._bot = self.BoardLayout(1, dict.fromkeys(
+        self._bot = BoardLayout(1, dict.fromkeys(
             [12, 14, 16, 18, 21, 23, 25, 27, 32, 34, 36, 38], False))
-        self._enemy = self.BoardLayout(-1, dict.fromkeys(
+        self._enemy = BoardLayout(-1, dict.fromkeys(
             [61, 63, 65, 67, 72, 74, 76, 78, 81, 83, 85, 87], False))
 
     @staticmethod
