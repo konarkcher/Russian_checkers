@@ -19,7 +19,7 @@ def console_talker():
             bot.stop_polling()
             break
         elif command == 'info':
-            print(len(sessions))
+            print(len(sessions), 'player(s) online')
 
 
 def bot_reply(moves_done):
@@ -180,7 +180,7 @@ def main():
     with open('dump.pickle', 'wb') as f:
         pickle.dump(sessions, f)
 
-    print('Finished!')
+    print('Finished!', len(sessions), 'session(s) dumped')
 
 
 if __name__ == '__main__':
