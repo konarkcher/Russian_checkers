@@ -2,6 +2,7 @@ import copy
 import random
 from collections import namedtuple
 from PIL import Image, ImageDraw, ImageFont
+from board_image_generator import draw_blank_board, to_str, to_str_format
 from draw_config import margin, sf_font, red_color, edge_color, \
     white_draught_color, black_draught_color
 
@@ -166,6 +167,7 @@ class Board:
 
 class Painter:
     def __init__(self):
+        draw_blank_board()
         self._blank = Image.open('blank.png')
 
     def draw(self, board):
@@ -205,7 +207,7 @@ class Painter:
                        fill=main_color, outline=other_color)
 
         font = ImageFont.truetype(*sf_font)
-        text = str((col + 1) * 10 + row + 1)
+        text = to_str_format(row, col)
         canvas.text(self._text_place(row, col, text, font), text,
                     font=font, fill=font_color)
 
@@ -334,17 +336,21 @@ class Game:
         else:
             res = moves[self.chosen_checker]
 
-        return [str(elem) for elem in list(res)]
+        return [to_str(elem) for elem in list(res)]
 
-    def external_session(self, number):
-        if number not in self.button_variants():
+    def external_session(self, ans):
+        if ans not in self.button_variants():
             return (-1 if self.chosen_checker == -1 else -2), []
 
         if self.chosen_checker == -1:
-            self.chosen_checker = int(number)
+            self.chosen_checker = self._to_pos(ans)
             return 2, []
         else:
-            return self.move_session(self.chosen_checker, int(number))
+            return self.move_session(self.chosen_checker, self._to_pos(ans))
+
+    @staticmethod
+    def _to_pos(ans):
+        return (9 - int(ans[1])) * 10 + (ord(ans[0]) - ord('A') + 1)
 
     def move_session(self, pos, target):  #
         """Returns -3 if you lose, 1 if choose checker, 2 if choose cell, 
@@ -379,42 +385,3 @@ class Game:
             return 1, moves_done
         else:
             return -3, moves_done
-
-
-def main():
-    message = {
-        -2: 'You lose :(', -1: 'Wrong move!', 0: 'You have to capture!',
-        1: 'Your turn!', 2: 'You win!'
-    }
-
-    print('Would you like to play white? y/n : ', end='')
-    test_board = Game(enemy_white=(input() == 'y'))
-
-    image = Image.open('tmp.png')
-    image.show()
-
-    res = 1
-    print(message[res])
-
-    while True:
-        inp = input().split()
-        try:
-            inp_pos, inp_target = int(inp[0]), int(inp[1])
-        except:
-            print(message[res])
-            continue
-
-        res, moves_done = test_board.move_session(inp_pos, inp_target)
-
-        image = Image.open('tmp.png')
-        image.show()
-
-        print(*moves_done)
-        print(message[res])
-
-        if res in (-2, 2):
-            break
-
-
-if __name__ == '__main__':
-    main()

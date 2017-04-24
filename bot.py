@@ -1,8 +1,10 @@
 import telebot
 import _thread
 import pickle
+import os
 from bot_config import TOKEN
 from checkers import Game
+from board_image_generator import to_str
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 sessions = {}
@@ -31,8 +33,8 @@ def bot_reply(moves_done):
     else:
         reply = "Bot moves: "
 
-    for move in moves_done:
-        reply += str(move) + ', '
+    for pos, target in moves_done:
+        reply += '(' + to_str(pos) + ', ' + to_str(target) + '), '
 
     return reply[:-2] + '\n'
 
@@ -102,7 +104,7 @@ def create_game_object(message):
                    reply_markup=make_markup(sessions[message.chat.id]))
 
 
-@bot.message_handler(regexp='[1-8][1-8]')
+@bot.message_handler(regexp='[A-H][1-8]')
 def move_handle(message):
     global sessions
     if message.chat.id not in sessions:
@@ -162,16 +164,13 @@ def reply_all_text(message):
     bot.send_message(message.chat.id, "Wrong command!")
 
 
-@bot.message_handler(func=lambda message: True)
-def reply_all(message):
-    print('lol')
-    bot.send_message(message.chat.id, "You can send only text!")
-
-
 def main():
     global sessions
-    with open('dump.pickle', 'rb') as f:
-        sessions = pickle.load(f)
+    if not os.path.isfile('dump.pickle'):
+        sessions = {}
+    else:
+        with open('dump.pickle', 'rb') as f:
+            sessions = pickle.load(f)
 
     _thread.start_new_thread(console_talker, ())
 
