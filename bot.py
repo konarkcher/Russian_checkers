@@ -47,7 +47,7 @@ def make_markup(game):
     buttons_in_row = 0
 
     for option in moves:
-        key_list.append(telebot.types.KeyboardButton(option))  # TODO: E4
+        key_list.append(telebot.types.KeyboardButton(option))
         buttons_in_row += 1
 
         if buttons_in_row == 3:
@@ -59,10 +59,6 @@ def make_markup(game):
         markup.row(*key_list)
 
     return markup
-
-
-def my_true(message):
-    return True
 
 
 @bot.message_handler(commands=['start'])
@@ -159,16 +155,19 @@ def finish_game(message):
         bot.send_message(message.chat.id, "You already don't have any games(")
 
 
+@bot.message_handler(commands=['help'])
+def help_reply(message):
+    bot.send_message(message.chat.id, "It's checkers, dude!")
+
+
 @bot.message_handler(content_types=['text'])
-def reply_all_text(message):
+def reply_all(message):
     bot.send_message(message.chat.id, "Wrong command!")
 
 
 def main():
     global sessions
-    if not os.path.isfile('dump.pickle'):
-        sessions = {}
-    else:
+    if os.path.isfile('dump.pickle'):
         with open('dump.pickle', 'rb') as f:
             sessions = pickle.load(f)
 

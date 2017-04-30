@@ -353,7 +353,7 @@ class Game:
         return (9 - int(ans[1])) * 10 + (ord(ans[0]) - ord('A') + 1)
 
     def move_session(self, pos, target):  #
-        """Returns -3 if you lose, 1 if choose checker, 2 if choose cell, 
+        """Returns -3 if you lose, 1 if choose checker, 2 if choose cell,
         3 if you win"""
 
         if self.murder == -1:
