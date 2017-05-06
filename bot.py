@@ -157,7 +157,16 @@ def finish_game(message):
 
 @bot.message_handler(commands=['help'])
 def help_reply(message):
-    bot.send_message(message.chat.id, "It's checkers, dude!")
+    bot.send_message(message.chat.id,
+                     '''
+Need some help?
+
+Use /start to start a game
+Choose checker and a place to put it with the buttons
+To finish the game prematurely, use /finish
+
+Have fun!
+                    ''')
 
 
 @bot.message_handler(content_types=['text'])
@@ -169,14 +178,24 @@ def main():
     global sessions
     if os.path.isfile('dump.pickle'):
         with open('dump.pickle', 'rb') as f:
-            sessions = pickle.load(f)
+            try:
+                sessions = pickle.load(f)
+            except (pickle.UnpicklingError, ValueError):
+                print("Unpickling Error!")  # TODO: log message
+                return
+    else:
+        print("Dump wasn't found!")  # TODO: log message
 
     _thread.start_new_thread(console_talker, ())
 
-    bot.polling(none_stop=True)
+    bot.polling(none_stop=True, timeout=100)
 
     with open('dump.pickle', 'wb') as f:
-        pickle.dump(sessions, f)
+        try:
+            pickle.dump(sessions, f)
+        except pickle.PicklingError:
+            print("Pickling Error!")  # TODO: log message
+            return
 
     print('Finished!', len(sessions), 'session(s) dumped')
 
