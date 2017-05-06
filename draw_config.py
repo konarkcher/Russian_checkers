@@ -1,6 +1,6 @@
 margin = 18
 
-sf_font = ('HelveticaNeue-Light.otf', 30)
+font = ('HelveticaNeue-Light.otf', 30)
 
 white_cell_color = (255, 206, 155)
 black_cell_color = (120, 91, 74)

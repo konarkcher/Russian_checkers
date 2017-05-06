@@ -2,9 +2,9 @@ import telebot
 import _thread
 import pickle
 import os
+import eng_locale as locale
 from bot_config import TOKEN
 from checkers import Game
-from board_image_generator import to_str
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 sessions = {}
@@ -29,34 +29,22 @@ def bot_reply(moves_done):
         return ''
 
     if len(moves_done) == 1:
-        reply = "Bot move: "
+        reply = [locale.bot_move]
     else:
-        reply = "Bot moves: "
+        reply = [locale.bot_moves]
 
-    for pos, target in moves_done:
-        reply += '(' + to_str(pos) + ', ' + to_str(target) + '), '
+    reply += ['({}, {}), '.format(pos, target) for pos, target in moves_done]
 
-    return reply[:-2] + '\n'
+    return ''.join(reply)[:-2] + '\n'
 
 
-def make_markup(game):
+def make_markup(game, can_change):
     moves = sorted(game.button_variants())
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
 
-    key_list = []
-    buttons_in_row = 0
-
-    for option in moves:
-        key_list.append(telebot.types.KeyboardButton(option))
-        buttons_in_row += 1
-
-        if buttons_in_row == 3:
-            markup.row(*key_list)
-            key_list = []
-            buttons_in_row = 0
-
-    if key_list:
-        markup.row(*key_list)
+    markup.add(*[telebot.types.KeyboardButton(option) for option in moves])
+    if can_change:
+        markup.row(locale.change_checkr)
 
     return markup
 
@@ -65,28 +53,28 @@ def make_markup(game):
 def start_game(message):
     global sessions
     if message.chat.id in sessions:
-        bot.send_message(message.chat.id,
-                         "Use /finish to finish the game firstly")
+        bot.send_message(message.chat.id, locale.use_finish)
         return
 
     sessions[message.chat.id] = 's'
 
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
-    key_white = telebot.types.KeyboardButton('White')
-    key_black = telebot.types.KeyboardButton('Black')
+    key_white = telebot.types.KeyboardButton(locale.white)
+    key_black = telebot.types.KeyboardButton(locale.white)
     markup.row(key_white, key_black)
 
-    bot.send_message(message.chat.id, "Choose the color:", reply_markup=markup)
+    bot.send_message(message.chat.id, locale.choose_color, reply_markup=markup)
 
 
-@bot.message_handler(func=lambda message: message.text in ('White', 'Black'))
+@bot.message_handler(func=lambda message: message.text in (locale.white,
+                                                           locale.black))
 def create_game_object(message):
     global sessions
     if sessions.get(message.chat.id) != 's':
-        bot.send_message(message.chat.id, "Wrong command!")
+        bot.send_message(message.chat.id, locale.wrong_command)
         return
 
-    if message.text == 'White':
+    if message.text == locale.white:
         sessions[message.chat.id] = Game(enemy_white=True)
         reply = ''
     else:
@@ -96,51 +84,65 @@ def create_game_object(message):
 
     picture = open('tmp.png', 'rb')
     bot.send_photo(message.chat.id, picture,
-                   reply + "Show me what you can!\nChoose checker:",
-                   reply_markup=make_markup(sessions[message.chat.id]))
+                   reply + locale.hello_message,
+                   reply_markup=make_markup(sessions[message.chat.id], False))
 
 
 @bot.message_handler(regexp='[A-H][1-8]')
 def move_handle(message):
     global sessions
     if message.chat.id not in sessions:
-        bot.send_message(message.chat.id,
-                         "Use /start to start the game firstly")
+        bot.send_message(message.chat.id, locale.use_start)
         return
 
     if sessions[message.chat.id] == 's':
-        bot.send_message(message.chat.id,
-                         "Use have to choose the color firstly")
+        bot.send_message(message.chat.id, locale.choose_color_first)
         return
 
-    replies = {
-        -3: 'You lose :(', -2: 'Wrong target cell!', -1: 'Wrong checker!',
-        1: 'Choose checker:', 2: 'Choose target cell:', 3: 'You win!',
-        4: 'Choose target cell again!'
-    }
+    replies = dict(zip(range(-3, 4), locale.replies))
 
     res, moves_done = sessions[message.chat.id].external_session(message.text)
 
-    if res in (-3, 3):
+    if res in (-3, 2):
         picture = open('tmp.png', 'rb')
-        markup = telebot.types.ReplyKeyboardRemove()
 
         bot.send_photo(message.chat.id, picture,
-                       bot_reply(moves_done) + replies[res] +
-                       "\nUse /start to start a new game", reply_markup=markup)
+                       bot_reply(moves_done) + replies[res],
+                       reply_markup=telebot.types.ReplyKeyboardRemove())
+        bot.send_message(message.chat.id, 'Invite text')  # TODO: fix
+
         sessions.pop(message.chat.id)
     elif res in (-2, -1):
         bot.send_message(message.chat.id, replies[res])
-    elif res in (1, 4):
+    elif res in (0, 3):
         picture = open('tmp.png', 'rb')
         bot.send_photo(message.chat.id, picture,
                        bot_reply(moves_done) + replies[res],
-                       reply_markup=make_markup(sessions[message.chat.id]))
-    elif res == 2:
+                       reply_markup=make_markup(sessions[message.chat.id],
+                                                False))
+    elif res == 1:
         bot.send_message(message.chat.id, replies[res],
-                         reply_markup=make_markup(sessions[message.chat.id]))
+                         reply_markup=make_markup(sessions[message.chat.id],
+                                                  True))
     else:
         print('Error in move_handle!!!')
+
+
+@bot.message_handler(func=lambda message: message.text == locale.change_checkr)
+def change_checker(message):
+    global sessions
+    if not isinstance(sessions.get(message.chat.id), Game):
+        bot.send_message(message.chat.id, locale.wrong_command)
+        return
+
+    game = sessions[message.chat.id]
+    if game.murder == -1 and game.chosen_checker != -1:
+        game.chosen_checker = -1
+        bot.send_message(message.chat.id, locale.replies[3],
+                         reply_markup=make_markup(sessions[message.chat.id],
+                                                  False))
+    else:
+        bot.send_message(message.chat.id, locale.wrong_command)
 
 
 @bot.message_handler(commands=['finish'])
@@ -148,30 +150,21 @@ def finish_game(message):
     global sessions
     if message.chat.id in sessions:
         sessions.pop(message.chat.id)
-        markup = telebot.types.ReplyKeyboardRemove()
 
-        bot.send_message(message.chat.id, "Finished!", reply_markup=markup)
+        bot.send_message(message.chat.id, locale.finished,
+                         reply_markup=telebot.types.ReplyKeyboardRemove())
     else:
-        bot.send_message(message.chat.id, "You already don't have any games(")
+        bot.send_message(message.chat.id, locale.no_games)
 
 
 @bot.message_handler(commands=['help'])
 def help_reply(message):
-    bot.send_message(message.chat.id,
-                     '''
-Need some help?
-
-Use /start to start a game
-Choose checker and a place to put it with the buttons
-To finish the game prematurely, use /finish
-
-Have fun!
-                    ''')
+    bot.send_message(message.chat.id, locale.help_message)
 
 
 @bot.message_handler(content_types=['text'])
 def reply_all(message):
-    bot.send_message(message.chat.id, "Wrong command!")
+    bot.send_message(message.chat.id, locale.wrong_command)
 
 
 def main():

@@ -2,9 +2,12 @@ import copy
 import random
 from collections import namedtuple
 from PIL import Image, ImageDraw, ImageFont
-from board_image_generator import draw_blank_board, to_str, to_str_format
-from draw_config import margin, sf_font, red_color, edge_color, \
+import draw_config
+
+'''
+from draw_config import margin, font, red_color, edge_color, \
     white_draught_color, black_draught_color
+'''
 
 BoardLayout = namedtuple('BoardLayout', ['orient', 'layout'])
 
@@ -165,66 +168,122 @@ class Board:
                (pos not in enemy.layout) and (pos not in me.layout)
 
 
+def to_str(checker, enemy_white):
+    return to_str_format(checker // 10 - 1, checker % 10 - 1, enemy_white)
+
+
+def to_str_format(row, col, enemy_white):
+    if enemy_white:
+        row = 7 - row
+        col = 7 - col
+
+    return chr(ord('A') + 7 - col) + str(row + 1)
+
+
 class Painter:
     def __init__(self):
-        draw_blank_board()
-        self._blank = Image.open('blank.png')
+        self._white_blank = self._draw_blank_board(enemy_white=True)
+        self._black_blank = self._draw_blank_board(enemy_white=False)
 
-    def draw(self, board):
-        image = self._blank.copy()
+    def _draw_blank_board(self, enemy_white):
+        image = Image.new('RGB', (550, 550), draw_config.white_cell_color)
         canvas = ImageDraw.Draw(image)
 
-        enemy_palette = ('black', white_draught_color, edge_color)
-        bot_palette = ('white', black_draught_color, edge_color)
+        canvas.rectangle(self._square_place(3, 515),
+                         fill=draw_config.black_cell_color)
+        canvas.rectangle(self._square_place(0, 512),
+                         fill=draw_config.white_cell_color)
 
-        if not board.enemy_white:
+        font = ImageFont.truetype(*draw_config.font)
+
+        for row in range(8):
+            for col in range(8):
+                if (row + col) % 2 == 1:
+                    canvas.rectangle(self._cell_place(row, col),
+                                     fill=draw_config.black_cell_color,
+                                     outline=draw_config.black_cell_color)
+
+                    text = to_str_format(row, col, enemy_white)
+                    canvas.text(self._text_place(row, col, text, font, 'b'),
+                                text, font=font, fill='white')
+
+        return image
+
+    def draw(self, board):
+        if board.enemy_white:
+            image = self._white_blank.copy()
+        else:
+            image = self._black_blank.copy()
+
+        canvas = ImageDraw.Draw(image)
+
+        enemy_palette = ('white', draw_config.black_draught_color,
+                         draw_config.edge_color)
+        bot_palette = ('black', draw_config.white_draught_color,
+                       draw_config.edge_color)
+
+        if board.enemy_white:
             enemy_palette, bot_palette = bot_palette, enemy_palette
 
         bot, enemy = board.get_sides(bot=True)
 
-        self._draw_side(canvas, enemy.layout, enemy_palette)
-        self._draw_side(canvas, bot.layout, bot_palette)
+        self._draw_side(canvas, enemy.layout, enemy_palette, board.enemy_white)
+        self._draw_side(canvas, bot.layout, bot_palette, board.enemy_white)
 
         image.save('tmp.png')
 
-    def _draw_side(self, canvas, layout, palette):
+    def _draw_side(self, canvas, layout, palette, enemy_white):
         for checker, is_king in layout.items():
             if is_king:
                 self._draw_checker(canvas, checker, *palette[:-1],
-                                   red_color)
+                                   draw_config.red_color, enemy_white)
             else:
-                self._draw_checker(canvas, checker, *palette)
+                self._draw_checker(canvas, checker, *palette, enemy_white)
 
     def _draw_checker(self, canvas, checker, font_color, main_color,
-                      other_color):
+                      other_color, enemy_white):
 
-        col = checker // 10 - 1
-        row = checker % 10 - 1
+        row = checker // 10 - 1
+        col = checker % 10 - 1
 
         canvas.ellipse(self._ellipse_place(row, col, 10, 5), fill=other_color)
 
         canvas.ellipse(self._ellipse_place(row, col, 5, 10),
                        fill=main_color, outline=other_color)
 
-        font = ImageFont.truetype(*sf_font)
-        text = to_str_format(row, col)
-        canvas.text(self._text_place(row, col, text, font), text,
+        font = ImageFont.truetype(*draw_config.font)
+        text = to_str_format(row, col, enemy_white)
+        canvas.text(self._text_place(row, col, text, font, 'c'), text,
                     font=font, fill=font_color)
 
     @staticmethod
-    def _ellipse_place(row, col, up_shift, down_shift):
-        return (row * 64 + margin + 5,
-                col * 64 + margin + up_shift,
-                (row + 1) * 64 + margin - 5,
-                (col + 1) * 64 + margin - down_shift)
+    def _square_place(up_left, down_right):
+        return (draw_config.margin - up_left, draw_config.margin - up_left,
+                draw_config.margin + down_right,
+                draw_config.margin + down_right)
 
     @staticmethod
-    def _text_place(row, col, text, font):
+    def _cell_place(row, col):
+        return (col * 64 + draw_config.margin, row * 64 + draw_config.margin,
+                (col + 1) * 64 + draw_config.margin,
+                (row + 1) * 64 + draw_config.margin)
+
+    @staticmethod
+    def _ellipse_place(row, col, up_shift, down_shift):
+        return (col * 64 + draw_config.margin + 5,
+                row * 64 + draw_config.margin + up_shift,
+                (col + 1) * 64 + draw_config.margin - 5,
+                (row + 1) * 64 + draw_config.margin - down_shift)
+
+    @staticmethod
+    def _text_place(row, col, text, font, context):
 
         width, height = font.getsize(text)
 
-        return (margin + row * 64 + (64 - width) // 2,
-                margin + col * 64 + 3 + (49 - height) // 2)
+        return (draw_config.margin + col * 64 + (64 - width) // 2,
+                (draw_config.margin + row * 64 + 3 + (49 - height) // 2
+                 if context == 'c' else
+                 draw_config.margin + row * 64 + (64 - height) // 2 - 1))
 
 
 class ArtificialIntelligence:
@@ -247,7 +306,8 @@ class ArtificialIntelligence:
 
             pos, target = random.choice(best_moves)
             board.make_move(pos, target, *board.get_sides(bot=True))
-            moves_done.append((pos, target))
+            moves_done.append((to_str(pos, board.enemy_white),
+                               to_str(target, board.enemy_white)))
 
             if compelled_board and board.move_options(target, bot=True)[1]:
                 murder = target
@@ -336,25 +396,30 @@ class Game:
         else:
             res = moves[self.chosen_checker]
 
-        return [to_str(elem) for elem in list(res)]
+        return [to_str(elem, self._board.enemy_white) for elem in list(res)]
 
     def external_session(self, ans):
         if ans not in self.button_variants():
             return (-1 if self.chosen_checker == -1 else -2), []
 
         if self.chosen_checker == -1:
-            self.chosen_checker = self._to_pos(ans)
-            return 2, []
+            self.chosen_checker = self._to_pos(ans, self._board.enemy_white)
+            return 1, []
         else:
-            return self.move_session(self.chosen_checker, self._to_pos(ans))
+            return self.move_session(self.chosen_checker,
+                                     self._to_pos(ans,
+                                                  self._board.enemy_white))
 
     @staticmethod
-    def _to_pos(ans):
-        return (9 - int(ans[1])) * 10 + (ord(ans[0]) - ord('A') + 1)
+    def _to_pos(ans, enemy_white):
+        if enemy_white:
+            return (9 - int(ans[1])) * 10 + (ord(ans[0]) - ord('A') + 1)
+        else:
+            return int(ans[1]) * 10 + (8 - ord(ans[0]) + ord('A'))
 
     def move_session(self, pos, target):  #
-        """Returns -3 if you lose, 1 if choose checker, 2 if choose cell,
-        3 if you win"""
+        """Returns -3 if you lose, 0 if choose checker, 1 if choose cell,
+        2 if you win, 3 if choose target again"""
 
         if self.murder == -1:
             moves, compelled_board = self._board.move_options(-1, bot=False)
@@ -368,7 +433,7 @@ class Game:
             self.murder = target
             self.chosen_checker = target
             Game.painter.draw(self._board)
-            return 4, []
+            return 3, []
         else:
             self.murder = -1
             self.chosen_checker = -1
@@ -377,11 +442,11 @@ class Game:
         Game.painter.draw(self._board)
 
         if len(moves_done) == 0:
-            return 3, moves_done
+            return 2, moves_done
 
         moves, compelled_board = self._board.move_options(-1, bot=False)
 
         if len(moves) > 0:
-            return 1, moves_done
+            return 0, moves_done
         else:
             return -3, moves_done
