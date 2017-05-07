@@ -388,7 +388,8 @@ class Game:
         self.until_draw = 15
 
     def black_first_move(self):
-        moves_done = Game.ai.bot_move(self._board)
+        moves_done, king_move = Game.ai.bot_move(self._board)
+        self.update_draw(king_move)
 
         Game.painter.draw(self._board)
         return moves_done
