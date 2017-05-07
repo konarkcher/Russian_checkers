@@ -18,6 +18,7 @@ class Board:
 
     @staticmethod
     def make_move(pos, target, me, enemy):
+        """Returns True if it was king's move"""
         y = me.orient if (target - pos) * me.orient > 0 else -me.orient
         x = 1 if target % 10 - pos % 10 > 0 else -1
 
@@ -34,6 +35,11 @@ class Board:
             me.layout.pop(pos)
         else:
             me.layout[target] = me.layout.pop(pos)
+
+        if me.layout[target]:
+            return True
+        else:
+            return False
 
     def move_options(self, target, bot):
         moves = {}
@@ -284,8 +290,9 @@ class Painter:
 class ArtificialIntelligence:
     def bot_move(self, board):
         moves, compelled_board = board.move_options(-1, bot=True)
+        king_move = False
         if len(moves) == 0:
-            return []
+            return [], king_move
 
         moves_done = []
 
@@ -300,7 +307,8 @@ class ArtificialIntelligence:
             best_moves = self._remove_far(best_moves)
 
             pos, target = random.choice(best_moves)
-            board.make_move(pos, target, *board.get_sides(bot=True))
+            king_move = board.make_move(pos, target,
+                                        *board.get_sides(bot=True))
             moves_done.append((to_str(pos, board.enemy_white),
                                to_str(target, board.enemy_white)))
 
@@ -309,7 +317,7 @@ class ArtificialIntelligence:
             else:
                 murder = -1
 
-        return moves_done
+        return moves_done, king_move
 
     @staticmethod
     def _remove_far(best_moves):
@@ -377,6 +385,7 @@ class Game:
 
         self.murder = -1
         self.chosen_checker = -1
+        self.until_draw = 15
 
     def black_first_move(self):
         moves_done = Game.ai.bot_move(self._board)
@@ -412,9 +421,15 @@ class Game:
         else:
             return int(ans[1]) * 10 + (8 - ord(ans[0]) + ord('A'))
 
+    def update_draw(self, king_move):
+        if king_move:
+            self.until_draw -= 1
+        else:
+            self.until_draw = 15
+
     def move_session(self, pos, target):  #
         """Returns -3 if you lose, 0 if choose checker, 1 if choose cell,
-        2 if you win, 3 if choose target again"""
+        2 if you win, 3 if choose target again, 4 if draw"""
 
         if self.murder == -1:
             moves, compelled_board = self._board.move_options(-1, bot=False)
@@ -422,7 +437,9 @@ class Game:
             moves, compelled_board = self._board.move_options(self.murder,
                                                               bot=False)
 
-        self._board.make_move(pos, target, *self._board.get_sides(bot=False))
+        king_move = self._board.make_move(pos, target,
+                                          *self._board.get_sides(bot=False))
+        self.update_draw(king_move)
 
         if compelled_board and self._board.move_options(target, bot=False)[1]:
             self.murder = target
@@ -433,7 +450,8 @@ class Game:
             self.murder = -1
             self.chosen_checker = -1
 
-        moves_done = Game.ai.bot_move(self._board)
+        moves_done, king_move = Game.ai.bot_move(self._board)
+        self.update_draw(king_move)
         Game.painter.draw(self._board)
 
         if len(moves_done) == 0:
@@ -442,6 +460,9 @@ class Game:
         moves, compelled_board = self._board.move_options(-1, bot=False)
 
         if len(moves) > 0:
-            return 0, moves_done
+            if self.until_draw > 0:
+                return 0, moves_done
+            else:
+                return 4, moves_done
         else:
             return -3, moves_done

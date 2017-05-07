@@ -123,11 +123,11 @@ def move_handle(message):
         bot.send_message(message.chat.id, locale.choose_color_first)
         return
 
-    replies = dict(zip(range(-3, 4), locale.replies))
+    replies = dict(zip(range(-3, 5), locale.replies))
 
     res, moves_done = sessions[message.chat.id].external_session(message.text)
 
-    if res in (-3, 2):
+    if res in (-3, 2, 4):
         picture = open('tmp.png', 'rb')
 
         bot.send_photo(message.chat.id, picture,
@@ -136,16 +136,17 @@ def move_handle(message):
 
         if res == 2:
             stat[0] += 1
-            action = 'won'
-        else:
+            action = 'won the game'
+        elif res == -3:
             stat[1] += 1
-            action = 'lost'
+            action = 'lost the game'
+        else:
+            action = 'got a draw'
 
         if message.chat.type == 'private':
-            logger.info('{} {} the game'.format(message.chat.username, action))
+            logger.info('{} {}'.format(message.chat.username, action))
         else:
-            logger.info('chat {} {} the game'.format(message.chat.title,
-                                                     action))
+            logger.info('chat {} {}'.format(message.chat.title, action))
         logger.info(
             'Statistics: {0[0]} for humans, {0[1]} for bot'.format(stat))
 
