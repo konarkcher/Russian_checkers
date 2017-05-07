@@ -75,7 +75,7 @@ def get_name(message):
     name = message.chat.username
 
     if name is None:
-        return '{0.first_name} {0.last_name}'.format(message.chat)
+        return message.chat.id
     return name
 
 
