@@ -1,19 +1,38 @@
 import telebot
 import _thread
 import pickle
+import logging
 import os
+import sys
 import eng_locale as locale
 from bot_config import TOKEN
 from checkers import Game
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+
+handler = logging.FileHandler('bot_logs.log', 'a', 'utf-8')
+formatter = logging.Formatter('%(levelname)-8s [%(asctime)s] %(message)s')
+handler.setFormatter(formatter)
+handler.setLevel(logging.INFO)
+logger.addHandler(handler)
+
+handler = logging.StreamHandler(sys.stdout)
+formatter = logging.Formatter('%(levelname)-8s %(message)s')
+handler.setFormatter(formatter)
+handler.setLevel(logging.WARNING)
+logger.addHandler(handler)
+
 sessions = {}
+stat = [0, 0]  # humanity/machines
 
 
 def console_talker():
     while True:
         print(
-            "Input 'stop' to stop server, 'info' for players online\n>>> ",
+            "Input 'stop' to stop server, 'info' for games info\n>>> ",
             end='')
 
         command = input()
@@ -21,7 +40,8 @@ def console_talker():
             bot.stop_polling()
             break
         elif command == 'info':
-            print(len(sessions), 'player(s) online')
+            template = '{0} players online; humans won {1[0]}, bot won {1[1]}'
+            print(template.format(len(sessions), stat))
 
 
 def bot_reply(moves_done):
@@ -38,13 +58,13 @@ def bot_reply(moves_done):
     return ''.join(reply)[:-2] + '\n'
 
 
-def make_markup(game, can_change):
+def make_markup(game, can_change_checker):
     moves = sorted(game.button_variants())
     markup = telebot.types.ReplyKeyboardMarkup(resize_keyboard=True)
 
     markup.add(*[telebot.types.KeyboardButton(option) for option in moves])
-    if can_change:
-        markup.row(locale.change_checkr)
+    if can_change_checker:
+        markup.row(locale.change_checker)
 
     return markup
 
@@ -59,15 +79,18 @@ def start_game(message):
     sessions[message.chat.id] = 's'
 
     markup = telebot.types.ReplyKeyboardMarkup(one_time_keyboard=True)
-    key_white = telebot.types.KeyboardButton(locale.white)
-    key_black = telebot.types.KeyboardButton(locale.white)
-    markup.row(key_white, key_black)
+    colors = (locale.white, locale.black)
+    markup.row(*(telebot.types.KeyboardButton(color) for color in colors))
 
     bot.send_message(message.chat.id, locale.choose_color, reply_markup=markup)
 
+    if message.chat.type == 'private':
+        logger.info('{} started a session'.format(message.chat.username))
+    else:
+        logger.info('chat {} started a session'.format(message.chat.title))
 
-@bot.message_handler(func=lambda message: message.text in (locale.white,
-                                                           locale.black))
+
+@bot.message_handler(regexp='^{}$|^{}$'.format(locale.white, locale.black))
 def create_game_object(message):
     global sessions
     if sessions.get(message.chat.id) != 's':
@@ -83,12 +106,11 @@ def create_game_object(message):
         reply = bot_reply(moves_done)
 
     picture = open('tmp.png', 'rb')
-    bot.send_photo(message.chat.id, picture,
-                   reply + locale.hello_message,
+    bot.send_photo(message.chat.id, picture, '{}{}'.format(reply, locale.hi),
                    reply_markup=make_markup(sessions[message.chat.id], False))
 
 
-@bot.message_handler(regexp='[A-H][1-8]')
+@bot.message_handler(regexp='^[A-H][1-8]$')
 def move_handle(message):
     global sessions
     if message.chat.id not in sessions:
@@ -107,9 +129,27 @@ def move_handle(message):
         picture = open('tmp.png', 'rb')
 
         bot.send_photo(message.chat.id, picture,
-                       bot_reply(moves_done) + replies[res],
+                       '{}{}'.format(bot_reply(moves_done), replies[res]),
                        reply_markup=telebot.types.ReplyKeyboardRemove())
-        bot.send_message(message.chat.id, 'Invite text')  # TODO: fix
+
+        if res == 2:
+            stat[0] += 1
+            action = 'won'
+        else:
+            stat[1] += 1
+            action = 'lost'
+
+        if message.chat.type == 'private':
+            logger.info('{} {} the game'.format(message.chat.username, action))
+        else:
+            logger.info('chat {} {} the game'.format(message.chat.title,
+                                                     action))
+        logger.info(
+            'Statistics: {0[0]} for humans, {0[1]} for bot'.format(stat))
+
+        picture = open('invite_pic.jpg', 'rb')
+        bot.send_photo(message.chat.id, picture,
+                       locale.invite_template.format(stat))
 
         sessions.pop(message.chat.id)
     elif res in (-2, -1):
@@ -117,7 +157,7 @@ def move_handle(message):
     elif res in (0, 3):
         picture = open('tmp.png', 'rb')
         bot.send_photo(message.chat.id, picture,
-                       bot_reply(moves_done) + replies[res],
+                       '{}{}'.format(bot_reply(moves_done), replies[res]),
                        reply_markup=make_markup(sessions[message.chat.id],
                                                 False))
     elif res == 1:
@@ -128,7 +168,7 @@ def move_handle(message):
         print('Error in move_handle!!!')
 
 
-@bot.message_handler(func=lambda message: message.text == locale.change_checkr)
+@bot.message_handler(regexp='^{}$'.format(locale.change_checker))
 def change_checker(message):
     global sessions
     if not isinstance(sessions.get(message.chat.id), Game):
@@ -156,6 +196,12 @@ def finish_game(message):
     else:
         bot.send_message(message.chat.id, locale.no_games)
 
+    template = '{}{} finished the game prematurely'
+    if message.chat.type == 'private':
+        logger.info(template.format('', message.chat.username))
+    else:
+        logger.info(template.format('chat ', message.chat.title))
+
 
 @bot.message_handler(commands=['help'])
 def help_reply(message):
@@ -167,30 +213,55 @@ def reply_all(message):
     bot.send_message(message.chat.id, locale.wrong_command)
 
 
+def open_file(path, default_value):
+    if os.path.isfile(path):
+        with open(path, 'rb') as f:
+            try:
+                return pickle.load(f)
+            except (pickle.UnpicklingError, ValueError):
+                logger.error("Unpickling Error with {}!".format(path))
+                return default_value
+    else:
+        logger.warning("Dump {} wasn't found".format(path))
+        return default_value
+
+
+def save_to_file(value, path, log_func):
+    with open(path, 'wb') as f:
+        try:
+            pickle.dump(value, f)
+            return False
+        except pickle.PicklingError:
+            log_func("Pickling Error with {}!\n".format(path))
+            return True
+
+
 def main():
     global sessions
-    if os.path.isfile('dump.pickle'):
-        with open('dump.pickle', 'rb') as f:
-            try:
-                sessions = pickle.load(f)
-            except (pickle.UnpicklingError, ValueError):
-                print("Unpickling Error!")  # TODO: log message
-                return
-    else:
-        print("Dump wasn't found!")  # TODO: log message
+    global stat
+
+    logger.info("Program was started")
+
+    sessions = open_file('dump.pickle', sessions)
+    stat = open_file('stat.pickle', stat)
 
     _thread.start_new_thread(console_talker, ())
 
-    bot.polling(none_stop=True, timeout=100)
+    try:
+        bot.polling(none_stop=True, timeout=100)
+    except Exception as ex:
+        logger.error("Bot stopped with exception: {}".format(
+            type(ex).__name__))
 
-    with open('dump.pickle', 'wb') as f:
-        try:
-            pickle.dump(sessions, f)
-        except pickle.PicklingError:
-            print("Pickling Error!")  # TODO: log message
-            return
+        save_to_file(sessions, 'critical_dump.pickle', logger.critical)
+        save_to_file(stat, 'critical_dump.pickle', logger.critical)
 
-    print('Finished!', len(sessions), 'session(s) dumped')
+    if save_to_file(sessions, 'dump.pickle', logger.error):
+        return
+    if save_to_file(stat, 'stat.pickle', logger.error):
+        return
+
+    logger.info('Finished! {} session(s) dumped\n'.format(len(sessions)))
 
 
 if __name__ == '__main__':

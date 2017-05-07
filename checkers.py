@@ -4,11 +4,6 @@ from collections import namedtuple
 from PIL import Image, ImageDraw, ImageFont
 import draw_config
 
-'''
-from draw_config import margin, font, red_color, edge_color, \
-    white_draught_color, black_draught_color
-'''
-
 BoardLayout = namedtuple('BoardLayout', ['orient', 'layout'])
 
 
@@ -287,7 +282,7 @@ class Painter:
 
 
 class ArtificialIntelligence:
-    def bot_move(self, board):  # TODO: difficulty level
+    def bot_move(self, board):
         moves, compelled_board = board.move_options(-1, bot=True)
         if len(moves) == 0:
             return []
