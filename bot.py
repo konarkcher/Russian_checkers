@@ -131,21 +131,19 @@ def move_handle(message):
         bot.send_message(message.chat.id, locale.choose_color_first)
         return
 
-    replies = dict(zip(range(-3, 5), locale.replies))
-
     res, moves_done = sessions[message.chat.id].external_session(message.text)
 
-    if res in (-3, 2, 4):
+    if res in (0, 5, 7):
         picture = open('tmp.png', 'rb')
 
         bot.send_photo(message.chat.id, picture,
-                       '{}{}'.format(bot_reply(moves_done), replies[res]),
+                       '{}{}'.format(bot_reply(moves_done), locale.reply[res]),
                        reply_markup=telebot.types.ReplyKeyboardRemove())
 
-        if res == 2:
+        if res == 5:
             stat[0] += 1
             action = 'won the game'
-        elif res == -3:
+        elif res == 0:
             stat[1] += 1
             action = 'lost the game'
         else:
@@ -163,16 +161,16 @@ def move_handle(message):
                        locale.invite_template.format(stat))
 
         sessions.pop(message.chat.id)
-    elif res in (-2, -1):
-        bot.send_message(message.chat.id, replies[res])
-    elif res in (0, 3):
+    elif res in (1, 2):
+        bot.send_message(message.chat.id, locale.reply[res])
+    elif res in (3, 6):
         picture = open('tmp.png', 'rb')
         bot.send_photo(message.chat.id, picture,
-                       '{}{}'.format(bot_reply(moves_done), replies[res]),
+                       '{}{}'.format(bot_reply(moves_done), locale.reply[res]),
                        reply_markup=make_markup(sessions[message.chat.id],
                                                 False))
-    elif res == 1:
-        bot.send_message(message.chat.id, replies[res],
+    elif res == 4:
+        bot.send_message(message.chat.id, locale.reply[res],
                          reply_markup=make_markup(sessions[message.chat.id],
                                                   True))
     else:
@@ -189,7 +187,7 @@ def change_checker(message):
     game = sessions[message.chat.id]
     if game.murder == -1 and game.chosen_checker != -1:
         game.chosen_checker = -1
-        bot.send_message(message.chat.id, locale.replies[3],
+        bot.send_message(message.chat.id, locale.reply[3],
                          reply_markup=make_markup(sessions[message.chat.id],
                                                   False))
     else:

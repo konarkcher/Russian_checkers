@@ -31,10 +31,10 @@ Designed by Konstantin Chernis
 Code is on [GitHub](https://github.com/konarkcher/Russian_checkers)
 '''
 
-replies = ('You lose :(', 'Wrong target cell!', 'Wrong checker!',
+reply = ('You lose :(', 'Wrong target cell!', 'Wrong checker!',
            'Choose checker:', 'Choose target cell:', 'You win!',
            'Choose target cell again!', "It's a draw!"
-           )
+         )
 
 # Buttons
 

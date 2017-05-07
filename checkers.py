@@ -1,8 +1,8 @@
 import copy
 import random
+import draw_config
 from collections import namedtuple
 from PIL import Image, ImageDraw, ImageFont
-import draw_config
 
 BoardLayout = namedtuple('BoardLayout', ['orient', 'layout'])
 
@@ -405,11 +405,11 @@ class Game:
 
     def external_session(self, ans):
         if ans not in self.button_variants():
-            return (-1 if self.chosen_checker == -1 else -2), []
+            return (2 if self.chosen_checker == -1 else 1), []
 
         if self.chosen_checker == -1:
             self.chosen_checker = self._to_pos(ans, self._board.enemy_white)
-            return 1, []
+            return 4, []
         else:
             return self.move_session(self.chosen_checker,
                                      self._to_pos(ans,
@@ -446,7 +446,7 @@ class Game:
             self.murder = target
             self.chosen_checker = target
             Game.painter.draw(self._board)
-            return 3, []
+            return 6, []
         else:
             self.murder = -1
             self.chosen_checker = -1
@@ -456,14 +456,14 @@ class Game:
         Game.painter.draw(self._board)
 
         if len(moves_done) == 0:
-            return 2, moves_done
+            return 5, moves_done
 
         moves, compelled_board = self._board.move_options(-1, bot=False)
 
         if len(moves) > 0:
             if self.until_draw > 0:
-                return 0, moves_done
+                return 3, moves_done
             else:
-                return 4, moves_done
+                return 7, moves_done
         else:
-            return -3, moves_done
+            return 0, moves_done
