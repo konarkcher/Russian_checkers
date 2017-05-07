@@ -10,8 +10,10 @@ from checkers import Game
 
 bot = telebot.TeleBot(TOKEN, threaded=False)
 
-logger = logging.getLogger()
+logger = telebot.logger
 logger.setLevel(logging.INFO)
+
+logger.handlers = []
 
 handler = logging.FileHandler('bot_logs.log', 'a', 'utf-8')
 formatter = logging.Formatter('%(levelname)-8s [%(asctime)s] %(message)s')
@@ -32,7 +34,7 @@ stat = [0, 0]  # humanity/machines
 def console_talker():
     while True:
         print(
-            "Input 'stop' to stop server, 'info' for games info\n>>> ",
+            ">>> Input 'stop' to stop server, 'info' for games info\n",
             end='')
 
         command = input()
@@ -193,14 +195,14 @@ def finish_game(message):
 
         bot.send_message(message.chat.id, locale.finished,
                          reply_markup=telebot.types.ReplyKeyboardRemove())
+
+        template = '{}{} finished the game prematurely'
+        if message.chat.type == 'private':
+            logger.info(template.format('', message.chat.username))
+        else:
+            logger.info(template.format('chat ', message.chat.title))
     else:
         bot.send_message(message.chat.id, locale.no_games)
-
-    template = '{}{} finished the game prematurely'
-    if message.chat.type == 'private':
-        logger.info(template.format('', message.chat.username))
-    else:
-        logger.info(template.format('chat ', message.chat.title))
 
 
 @bot.message_handler(commands=['help'])
@@ -226,13 +228,13 @@ def open_file(path, default_value):
         return default_value
 
 
-def save_to_file(value, path, log_func):
+def save_to_file(value, path):
     with open(path, 'wb') as f:
         try:
             pickle.dump(value, f)
             return False
         except pickle.PicklingError:
-            log_func("Pickling Error with {}!\n".format(path))
+            logger.error("Pickling Error with {}!\n".format(path))
             return True
 
 
@@ -248,17 +250,12 @@ def main():
     _thread.start_new_thread(console_talker, ())
 
     try:
-        bot.polling(none_stop=True, timeout=100)
-    except Exception as ex:
-        logger.error("Bot stopped with exception: {}".format(
-            type(ex).__name__))
+        bot.polling(none_stop=True, timeout=20)
+    except Exception as e:
+        logger.error("Bot stopped with exception: {}".format(type(e).__name__))
 
-        save_to_file(sessions, 'critical_dump.pickle', logger.critical)
-        save_to_file(stat, 'critical_dump.pickle', logger.critical)
-
-    if save_to_file(sessions, 'dump.pickle', logger.error):
-        return
-    if save_to_file(stat, 'stat.pickle', logger.error):
+    save_to_file(stat, 'stat.pickle')
+    if save_to_file(sessions, 'dump.pickle'):
         return
 
     logger.info('Finished! {} session(s) dumped\n'.format(len(sessions)))
