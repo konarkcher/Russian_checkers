@@ -207,7 +207,7 @@ def finish_game(message):
 
 @bot.message_handler(commands=['help'])
 def help_reply(message):
-    bot.send_message(message.chat.id, locale.help_message)
+    bot.send_message(message.chat.id, locale.help_ans, parse_mode="Markdown")
 
 
 @bot.message_handler(content_types=['text'])

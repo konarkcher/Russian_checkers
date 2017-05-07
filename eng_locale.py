@@ -18,7 +18,7 @@ Join the resistance!
 Press /start!
 '''
 
-help_message = '''
+help_ans = '''
 Need some help?
 
 Use /start to start a game
@@ -27,7 +27,8 @@ To finish the game prematurely, use /finish
 
 Have fun!
 
-Created by Konstantin Chernis
+Designed by Konstantin Chernis
+Code is on [GitHub](https://github.com/konarkcher/Russian_checkers)
 '''
 
 replies = ('You lose :(', 'Wrong target cell!', 'Wrong checker!',
