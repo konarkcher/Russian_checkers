@@ -71,6 +71,14 @@ def make_markup(game, can_change_checker):
     return markup
 
 
+def get_name(message):
+    name = message.chat.username
+
+    if name is None:
+        return '{0.first_name} {0.last_name}'.format(message.chat)
+    return name
+
+
 @bot.message_handler(commands=['start'])
 def start_game(message):
     global sessions
@@ -87,7 +95,7 @@ def start_game(message):
     bot.send_message(message.chat.id, locale.choose_color, reply_markup=markup)
 
     if message.chat.type == 'private':
-        logger.info('{} started a session'.format(message.chat.username))
+        logger.info('{} started a session'.format(get_name(message)))
     else:
         logger.info('chat {} started a session'.format(message.chat.title))
 
@@ -144,7 +152,7 @@ def move_handle(message):
             action = 'got a draw'
 
         if message.chat.type == 'private':
-            logger.info('{} {}'.format(message.chat.username, action))
+            logger.info('{} {}'.format(get_name(message), action))
         else:
             logger.info('chat {} {}'.format(message.chat.title, action))
         logger.info(
@@ -199,7 +207,7 @@ def finish_game(message):
 
         template = '{}{} finished the game prematurely'
         if message.chat.type == 'private':
-            logger.info(template.format('', message.chat.username))
+            logger.info(template.format('', get_name(message)))
         else:
             logger.info(template.format('chat ', message.chat.title))
     else:
