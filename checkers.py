@@ -429,8 +429,8 @@ class Game:
             self.until_draw = 15
 
     def move_session(self, pos, target):  #
-        """Returns -3 if you lose, 0 if choose checker, 1 if choose cell,
-        2 if you win, 3 if choose target again, 4 if draw"""
+        """Returns 0 if you lose, 3 if choose checker, 4 if choose cell,
+        5 if you win, 6 if choose target again, 7 if draw"""
 
         if self.murder == -1:
             moves, compelled_board = self._board.move_options(-1, bot=False)
