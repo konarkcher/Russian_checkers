@@ -186,6 +186,29 @@ class Painter:
         self._white_blank = self._draw_blank_board(enemy_white=True)
         self._black_blank = self._draw_blank_board(enemy_white=False)
 
+    def draw(self, board):
+        if board.enemy_white:
+            image = self._white_blank.copy()
+        else:
+            image = self._black_blank.copy()
+
+        canvas = ImageDraw.Draw(image)
+
+        enemy_palette = ('white', draw_config.black_draught_color,
+                         draw_config.edge_color)
+        bot_palette = ('black', draw_config.white_draught_color,
+                       draw_config.edge_color)
+
+        if board.enemy_white:
+            enemy_palette, bot_palette = bot_palette, enemy_palette
+
+        bot, enemy = board.get_sides(bot=True)
+
+        self._draw_side(canvas, enemy.layout, enemy_palette, board.enemy_white)
+        self._draw_side(canvas, bot.layout, bot_palette, board.enemy_white)
+
+        image.save('tmp.png')
+
     def _draw_blank_board(self, enemy_white):
         image = Image.new('RGB', (550, 550), draw_config.white_cell_color)
         canvas = ImageDraw.Draw(image)
@@ -209,29 +232,6 @@ class Painter:
                                 text, font=font, fill='white')
 
         return image
-
-    def draw(self, board):
-        if board.enemy_white:
-            image = self._white_blank.copy()
-        else:
-            image = self._black_blank.copy()
-
-        canvas = ImageDraw.Draw(image)
-
-        enemy_palette = ('white', draw_config.black_draught_color,
-                         draw_config.edge_color)
-        bot_palette = ('black', draw_config.white_draught_color,
-                       draw_config.edge_color)
-
-        if board.enemy_white:
-            enemy_palette, bot_palette = bot_palette, enemy_palette
-
-        bot, enemy = board.get_sides(bot=True)
-
-        self._draw_side(canvas, enemy.layout, enemy_palette, board.enemy_white)
-        self._draw_side(canvas, bot.layout, bot_palette, board.enemy_white)
-
-        image.save('tmp.png')
 
     def _draw_side(self, canvas, layout, palette, enemy_white):
         for checker, is_king in layout.items():
@@ -389,7 +389,7 @@ class Game:
 
     def black_first_move(self):
         moves_done, king_move = Game.ai.bot_move(self._board)
-        self.update_draw(king_move)
+        self._update_draw(king_move)
 
         Game.painter.draw(self._board)
         return moves_done
@@ -422,7 +422,7 @@ class Game:
         else:
             return int(ans[1]) * 10 + (8 - ord(ans[0]) + ord('A'))
 
-    def update_draw(self, king_move):
+    def _update_draw(self, king_move):
         if king_move:
             self.until_draw -= 1
         else:
@@ -440,7 +440,7 @@ class Game:
 
         king_move = self._board.make_move(pos, target,
                                           *self._board.get_sides(bot=False))
-        self.update_draw(king_move)
+        self._update_draw(king_move)
 
         if compelled_board and self._board.move_options(target, bot=False)[1]:
             self.murder = target
@@ -452,7 +452,7 @@ class Game:
             self.chosen_checker = -1
 
         moves_done, king_move = Game.ai.bot_move(self._board)
-        self.update_draw(king_move)
+        self._update_draw(king_move)
         Game.painter.draw(self._board)
 
         if len(moves_done) == 0:
