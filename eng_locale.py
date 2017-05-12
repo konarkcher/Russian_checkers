@@ -25,7 +25,7 @@ Use /start to start a game
 Choose checker and a place to put it with the buttons
 To finish the game prematurely, use /finish
 
-If you what want to know the TRUTH, use /lore
+To find out the TRUTH, use /lore
 
 Have fun!
 
