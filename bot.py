@@ -265,6 +265,7 @@ def save_to_file(value, path):
         with open(path, 'wb') as f:
             pickle.dump(value, f)
 
+        cloud.files_delete("/{}".format(path))
         with open(path, "rb") as f:
             cloud.files_upload(f.read(), "/{}".format(path))
 
