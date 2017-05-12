@@ -1,14 +1,17 @@
 import telebot
 import _thread
+import dropbox
 import pickle
 import logging
 import os
 import sys
 import eng_locale as locale
-from bot_config import TOKEN
+from bot_config import BOT_TOKEN, DBX_TOKEN
 from checkers import Game
 
-bot = telebot.TeleBot(TOKEN, threaded=False)
+cloud = dropbox.Dropbox(DBX_TOKEN)
+
+bot = telebot.TeleBot(BOT_TOKEN, threaded=False)
 
 logger = telebot.logger
 logger.setLevel(logging.INFO)
@@ -156,9 +159,7 @@ def move_handle(message):
         logger.info(
             'Statistics: {0[0]} for humans, {0[1]} for bot'.format(stat))
 
-        picture = open('invite_pic.jpg', 'rb')
-        bot.send_photo(message.chat.id, picture,
-                       locale.invite_template.format(stat))
+        lore_message()
 
         sessions.pop(message.chat.id)
     elif res in (1, 2):
@@ -217,12 +218,36 @@ def help_reply(message):
     bot.send_message(message.chat.id, locale.help_ans, parse_mode="Markdown")
 
 
+@bot.message_handler(commands=['lore'])
+def lore_message(message):
+    picture = open('invite_pic.jpg', 'rb')
+    bot.send_photo(message.chat.id, picture,
+                   locale.invite_template.format(stat))
+
+
+@bot.message_handler(commands=['info'])
+def get_info(message):
+    if message.from_user.username == 'konarkcher':
+        template = '{0} players online; humans won {1[0]}, bot won {1[1]}'
+        bot.send_message(message.chat.id, template.format(len(sessions), stat))
+    else:
+        reply_all(message)
+
+
 @bot.message_handler(content_types=['text'])
 def reply_all(message):
     bot.send_message(message.chat.id, locale.wrong_command)
 
 
 def open_file(path, default_value):
+    try:
+        cloud.files_download_to_file(path, "/{}".format(path))
+    except dropbox.exceptions.ApiError as e:
+        logger.warning(
+            "{} while downloading {}".format(type(e.error).__name__, path))
+
+        return default_value
+
     if os.path.isfile(path):
         with open(path, 'rb') as f:
             try:
@@ -231,18 +256,26 @@ def open_file(path, default_value):
                 logger.error("Unpickling Error with {}!".format(path))
                 return default_value
     else:
-        logger.warning("Dump {} wasn't found".format(path))
+        logger.warning("Dump {} wasn't found on disk".format(path))
         return default_value
 
 
 def save_to_file(value, path):
-    with open(path, 'wb') as f:
-        try:
+    try:
+        with open(path, 'wb') as f:
             pickle.dump(value, f)
-            return False
-        except pickle.PicklingError:
-            logger.error("Pickling Error with {}!\n".format(path))
-            return True
+
+        with open(path, "rb") as f:
+            cloud.files_upload(f.read(), "/{}".format(path))
+
+        return False
+    except pickle.PicklingError:
+        logger.error("Pickling Error with {}!\n".format(path))
+        return True
+    except dropbox.exceptions.ApiError as e:
+        logger.error(
+            "{} while uploading {}".format(type(e.error).__name__, path))
+        return True
 
 
 def main():
