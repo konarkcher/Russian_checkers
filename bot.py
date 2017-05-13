@@ -170,7 +170,7 @@ def move_handle(message):
         logger.info(
             'Statistics: {0[0]} for humans, {0[1]} for bot'.format(stat))
 
-        lore_message()
+        lore_message(message)
 
         sessions.pop(message.chat.id)
     elif res in (1, 2):
@@ -302,10 +302,7 @@ def main():
     _thread.start_new_thread(console_talker, ())
     _thread.start_new_thread(backup, ())
 
-    try:
-        bot.polling(none_stop=True, timeout=20)
-    except Exception as e:
-        logger.error("Bot stopped with exception: {}".format(type(e).__name__))
+    bot.polling(none_stop=True, timeout=20)
 
     global do_backups
     do_backups = False
