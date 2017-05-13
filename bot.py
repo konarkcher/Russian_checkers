@@ -302,7 +302,10 @@ def main():
     _thread.start_new_thread(console_talker, ())
     _thread.start_new_thread(backup, ())
 
-    bot.polling(none_stop=True, timeout=20)
+    try:
+        bot.polling(none_stop=True, timeout=20)
+    except Exception as e:
+        logger.error("Bot stopped with exception: {}".format(type(e).__name__))
 
     global do_backups
     do_backups = False
