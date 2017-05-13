@@ -1,6 +1,5 @@
 import telebot
 import _thread
-import time
 import dropbox
 import pickle
 import logging
@@ -33,7 +32,6 @@ logger.addHandler(handler)
 
 sessions = {}
 stat = [0, 0]  # humanity/machines
-do_backups = True
 
 
 def console_talker():
@@ -49,15 +47,6 @@ def console_talker():
         elif command == 'info':
             template = '{0} players online; humans won {1[0]}, bot won {1[1]}'
             print(template.format(len(sessions), stat))
-
-
-def backup():
-    time.sleep(60)
-
-    while do_backups:
-        save_to_cloud(stat, 'stat.pickle')
-        save_to_cloud(sessions, 'dump.pickle')
-        time.sleep(60)
 
 
 def bot_reply(moves_done):
@@ -275,19 +264,25 @@ def save_to_cloud(value, path):
     try:
         with open(path, 'wb') as f:
             pickle.dump(value, f)
-
-        cloud.files_delete("/{}".format(path))
-        with open(path, "rb") as f:
-            cloud.files_upload(f.read(), "/{}".format(path))
-
-        return False
     except pickle.PicklingError:
         logger.error("Pickling Error with {}!\n".format(path))
         return True
+
+    try:
+        cloud.files_delete("/{}".format(path))
+    except dropbox.exceptions.ApiError as e:
+        logger.error(
+            "{} while deleting {}".format(type(e.error).__name__, path))
+
+    try:
+        with open(path, "rb") as f:
+            cloud.files_upload(f.read(), "/{}".format(path))
     except dropbox.exceptions.ApiError as e:
         logger.error(
             "{} while uploading {}".format(type(e.error).__name__, path))
         return True
+
+    return False
 
 
 def main():
@@ -300,15 +295,11 @@ def main():
     stat = get_file('stat.pickle', stat)
 
     _thread.start_new_thread(console_talker, ())
-    _thread.start_new_thread(backup, ())
 
     try:
         bot.polling(none_stop=True, timeout=20)
     except Exception as e:
         logger.error("Bot stopped with exception: {}".format(type(e).__name__))
-
-    global do_backups
-    do_backups = False
 
     save_to_cloud(stat, 'stat.pickle')
     if save_to_cloud(sessions, 'dump.pickle'):
