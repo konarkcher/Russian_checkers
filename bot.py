@@ -1,5 +1,6 @@
 import telebot
 import _thread
+import time
 import dropbox
 import pickle
 import logging
@@ -32,6 +33,7 @@ logger.addHandler(handler)
 
 sessions = {}
 stat = [0, 0]  # humanity/machines
+do_backups = True
 
 
 def console_talker():
@@ -47,6 +49,15 @@ def console_talker():
         elif command == 'info':
             template = '{0} players online; humans won {1[0]}, bot won {1[1]}'
             print(template.format(len(sessions), stat))
+
+
+def backup():
+    time.sleep(60)
+
+    while do_backups:
+        save_to_cloud(stat, 'stat.pickle')
+        save_to_cloud(sessions, 'dump.pickle')
+        time.sleep(60)
 
 
 def bot_reply(moves_done):
@@ -239,7 +250,7 @@ def reply_all(message):
     bot.send_message(message.chat.id, locale.wrong_command)
 
 
-def open_file(path, default_value):
+def get_file(path, default_value):
     try:
         cloud.files_download_to_file(path, "/{}".format(path))
     except dropbox.exceptions.ApiError as e:
@@ -260,7 +271,7 @@ def open_file(path, default_value):
         return default_value
 
 
-def save_to_file(value, path):
+def save_to_cloud(value, path):
     try:
         with open(path, 'wb') as f:
             pickle.dump(value, f)
@@ -285,18 +296,22 @@ def main():
 
     logger.info("Program was started")
 
-    sessions = open_file('dump.pickle', sessions)
-    stat = open_file('stat.pickle', stat)
+    sessions = get_file('dump.pickle', sessions)
+    stat = get_file('stat.pickle', stat)
 
     _thread.start_new_thread(console_talker, ())
+    _thread.start_new_thread(backup, ())
 
     try:
         bot.polling(none_stop=True, timeout=20)
     except Exception as e:
         logger.error("Bot stopped with exception: {}".format(type(e).__name__))
 
-    save_to_file(stat, 'stat.pickle')
-    if save_to_file(sessions, 'dump.pickle'):
+    global do_backups
+    do_backups = False
+
+    save_to_cloud(stat, 'stat.pickle')
+    if save_to_cloud(sessions, 'dump.pickle'):
         return
 
     logger.info('Finished! {} session(s) dumped\n'.format(len(sessions)))
