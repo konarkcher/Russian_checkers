@@ -13,8 +13,8 @@ A Telegram bot which plays russian checkers
 
 ### Screenshots
 
-![Screenshot 1](screenshots.screenshot_1.PNG)
-![Screenshot 2](screenshots.screenshot_2.PNG)
+![Screenshot 1](screenshots/screenshot_1.PNG)
+![Screenshot 2](screenshots/screenshot_2.PNG)
 
 ## Installation
 
