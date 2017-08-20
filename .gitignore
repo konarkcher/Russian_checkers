@@ -5,15 +5,15 @@
 
 # And not these files...
 !.gitignore
+
 !bot.py
 !checkers.py
 !draw_config.py
 !eng_locale.py
 !HelveticaNeue-Light.otf
 !invite_pic.jpg
-!README.md
 
-!screenshots/
-!screenshots/*.PNG
+!README.md
+!screenshot.PNG
 
 # But definitely these...

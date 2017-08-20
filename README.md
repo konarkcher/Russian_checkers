@@ -11,10 +11,9 @@ A Telegram bot which plays russian checkers
 * Logs about games and unexpected situations with logging module
 * Image generation with Pillow library
 
-### Screenshots
+### Screenshot
 
-![Screenshot 1](screenshots.screenshot_1.PNG)
-![Screenshot 2](screenshots.screenshot_2.PNG)
+![Screenshot](screenshot.PNG)
 
 ## Installation
 
