@@ -7,7 +7,8 @@ A Telegram bot which plays russian checkers
 ### Features
 
 * Win/lose rate and current games Dropbox backup
-* Separate thread to get information about current games' status via commands in terminal
+* Separate thread to get information about current games' status
+via commands in terminal
 * Logs about games and unexpected situations with logging module
 * Image generation with Pillow library
 
@@ -19,7 +20,8 @@ A Telegram bot which plays russian checkers
 
 ### Warning!!!
 
-The version of Dropbox API used in this project is outdated, update it before deploying!
+The version of Dropbox API used in this project is outdated,
+update it before deploying!
 
 ### Startup
 
@@ -27,7 +29,7 @@ The version of Dropbox API used in this project is outdated, update it before de
 
 ```python
 BOT_TOKEN = "TELEGRAM-BOT-TOKEN"
-DBX_TOKEN = "DROPBOX_ACCESS_TOKEN"
+DBX_TOKEN = "DROPBOX-ACCESS-TOKEN"
 ```
 
 2. Run `bot.py`
